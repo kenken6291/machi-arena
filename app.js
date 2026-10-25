@@ -1,4 +1,4 @@
-// まちアリーナ — フロントエンド
+// まちアリーナ～リアルに遊ぶ — フロントエンド
 import { CONFIG } from './config.js';
 
 /* ============================================================
@@ -716,7 +716,7 @@ function bindRoom() {
 
   $('#btn-share-code').addEventListener('click', async () => {
     const code = $('#room-code').textContent;
-    const text = `まちアリーナで遊ぼう！ルームコード：${code}`;
+    const text = `${CONFIG.APP_NAME}で遊ぼう！ルームコード：${code}`;
     try {
       if (navigator.share) await navigator.share({ title: CONFIG.APP_NAME, text, url: location.origin + location.pathname });
       else { await navigator.clipboard.writeText(text); toast('ルームコードをコピーしました'); }

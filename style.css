@@ -53,7 +53,9 @@ button, input, select { font: inherit; color: inherit; }
   border: 2px solid var(--signal);
   background: radial-gradient(circle, var(--signal) 0 3px, transparent 4px);
 }
-.brand-name { font-family: var(--display); font-size: 18px; letter-spacing: .04em; }
+.brand-name { font-family: var(--display); font-size: 18px; letter-spacing: .04em; white-space: nowrap; }
+.brand-sub { font-family: var(--body); font-weight: 700; font-size: 12px; letter-spacing: 0; margin-left: 2px; color: var(--signal); }
+@media (max-width: 380px) { .brand-sub { display: none; } }
 .header-right { display: flex; align-items: center; gap: 8px; }
 .hdr-user { font-size: 13px; color: var(--dim); max-width: 7em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .version {

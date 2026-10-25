@@ -1,5 +1,5 @@
-// まちアリーナ Service Worker（ネットワーク優先・オフライン時はキャッシュ）
-const CACHE = 'machi-arena-v1.0.1';
+// まちアリーナ～リアルに遊ぶ Service Worker（ネットワーク優先・オフライン時はキャッシュ）
+const CACHE = 'machi-arena-v1.0.2';
 const SHELL = ['./', './index.html', './style.css', './app.js', './config.js', './manifest.webmanifest', './icon.svg'];
 
 self.addEventListener('install', (e) => {

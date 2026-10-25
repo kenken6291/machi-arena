@@ -1,5 +1,5 @@
 /**
- * まちアリーナ (MACHI ARENA) — GAS バックエンド
+ * まちアリーナ～リアルに遊ぶ (MACHI ARENA) — GAS バックエンド
  * スプレッドシートにバインドしたスクリプトとして使用します。
  *
  * スクリプトプロパティ（プロジェクトの設定 → スクリプト プロパティ）
@@ -13,8 +13,8 @@
  */
 
 const APP = {
-  NAME: 'まちアリーナ',
-  VERSION: 'v1.0.0',
+  NAME: 'まちアリーナ～リアルに遊ぶ',
+  VERSION: 'v1.0.2',
   SESSION_DAYS: 14,
   MAX_FAIL: 5,
   LOCK_MIN: 15,
@@ -763,7 +763,8 @@ function eventsSince_(roomId, userId, sinceTs) {
  * ============================================================ */
 const GM_SYSTEM = 'あなたは街を舞台にした位置情報ゲームの熱血ゲームマスター兼実況アナウンサーです。' +
   '日本語で、短く、テンポよく、ワクワクする口調で話します。絵文字・記号・マークダウンは使いません。' +
-  '安全第一：交通ルール遵守、走って人にぶつからない、私有地に入らないことを常に前提にします。';
+  '安全第一：交通ルール遵守、走って人にぶつからない、私有地に入らないことを常に前提にします。' +
+  '出力はそのまま音声で読み上げられます。前置き・説明・「〜と読み上げてください」などの指示文や括弧書きは一切書かず、読み上げる本文だけを出力してください。';
 
 function callGemini_(prompt) {
   const key = prop_('GEMINI_API_KEY');
@@ -810,12 +811,11 @@ function tts_(req, user) {
   if (!key) throw err_('NO_API_KEY', 'GEMINI_API_KEY が未設定です');
   const model = prop_('GEMINI_TTS_MODEL') || 'gemini-2.5-flash-preview-tts';
   const voice = prop_('GEMINI_TTS_VOICE') || 'Kore';
-  const style = String(req.style || 'ゲームの実況アナウンサーとして、テンポよく臨場感たっぷりに読み上げて');
   const res = UrlFetchApp.fetch('https://generativelanguage.googleapis.com/v1beta/models/' + model + ':generateContent', {
     method: 'post', contentType: 'application/json', muteHttpExceptions: true,
     headers: { 'x-goog-api-key': key },
     payload: JSON.stringify({
-      contents: [{ parts: [{ text: style + ': ' + text }] }],
+      contents: [{ parts: [{ text: text }] }],
       generationConfig: {
         responseModalities: ['AUDIO'],
         speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: voice } } }

@@ -1,4 +1,4 @@
-# まちアリーナ（machi-arena）セットアップガイド
+# まちアリーナ～リアルに遊ぶ（machi-arena）セットアップガイド
 
 街そのものをゲーム盤にする、スマホ向けの位置情報リアルタイムゲームです。
 リアル鬼ごっこ／リアルかくれんぼ／リアル陣取り合戦／リアルすごろくの4モードを収録しています。
@@ -115,13 +115,13 @@ Apps Script の「プロジェクトの設定」→「スクリプト プロパ�
 
 ### 動作確認
 
-ブラウザで `…/exec` を開き、`{"ok":true,"app":"まちアリーナ","version":"v1.0.1",…}` が出れば OK です。
+ブラウザで `…/exec` を開き、`{"ok":true,"app":"まちアリーナ～リアルに遊ぶ","version":"v1.0.2",…}` が出れば OK です。
 
 ## 4. config.js の設定
 
 ```js
 GAS_API_URL: 'https://script.google.com/macros/s/（デプロイID）/exec',
-APP_VERSION: 'v1.0.1',
+APP_VERSION: 'v1.0.2',
 DEBUG_MODE: false,          // true で通信内容をコンソールに出力
 TTS_ENGINE: 'gemini',       // 'browser' にすると API を使わず端末で読み上げ
 ```
@@ -151,7 +151,7 @@ TTS_ENGINE: 'gemini',       // 'browser' にすると API を使わず端末で�
    ```bash
    git init
    git add index.html style.css app.js config.js sw.js manifest.webmanifest icon.svg README.md
-   git commit -m "まちアリーナ v1.0.1"
+   git commit -m "まちアリーナ～リアルに遊ぶ v1.0.2"
    git branch -M main
    git remote add origin https://github.com/kenken6291/machi-arena.git
    git push -u origin main
