@@ -632,11 +632,16 @@ async function syncRoom() {
       roomId: S.roomId, sinceTs: S.lastEventTs,
       lat: p?.lat, lng: p?.lng, accuracy: p?.acc
     });
+    S.missCount = 0;
     applyState(r.state);
     handleEvents(r.events);
   } catch (e) {
     dbg('sync error', e);
-    if (['ROOM_NOT_FOUND', 'NOT_IN_ROOM'].includes(e.code)) { toast(e.message, true); gotoLobby(); }
+    if (['ROOM_NOT_FOUND', 'NOT_IN_ROOM'].includes(e.code)) {
+      // 一時的な読み込み遅れの可能性があるため、3回続いたときだけロビーへ戻す
+      S.missCount = (S.missCount || 0) + 1;
+      if (S.missCount >= 3) { S.missCount = 0; toast(e.message, true); gotoLobby(); }
+    }
   } finally {
     S.syncing = false;
   }
@@ -795,11 +800,19 @@ function updateWaitMap(st) {
 }
 
 const addSpotAt = safe(async (lat, lng) => {
-  await api('addSpot', {
+  if (!S.roomId) throw new Error('ルーム情報を読み込み中です。少し待ってから追加してください');
+  const payload = {
     roomId: S.roomId, lat, lng,
     name: $('#spot-name').value.trim(),
     radius: Number($('#spot-radius').value) || undefined
-  });
+  };
+  try {
+    await api('addSpot', payload);
+  } catch (e) {
+    if (e.code !== 'ROOM_NOT_FOUND') throw e;
+    await new Promise((r) => setTimeout(r, 1500));
+    await api('addSpot', payload);
+  }
   $('#spot-name').value = '';
   setPickMode(false);
   toast('スポットを追加しました');

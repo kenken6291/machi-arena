@@ -14,7 +14,7 @@
 
 const APP = {
   NAME: 'まちアリーナ～リアルに遊ぶ',
-  VERSION: 'v1.0.4',
+  VERSION: 'v1.0.5',
   SESSION_DAYS: 14,
   MAX_FAIL: 5,
   LOCK_MIN: 15,
@@ -924,8 +924,16 @@ function addEvent_(roomId, type, message, userId, visibility) {
 }
 
 function getRoom_(roomId) {
-  const r = rows_('Rooms').find(x => String(x.roomId) === String(roomId));
-  if (!r) throw err_('ROOM_NOT_FOUND', 'ルームが見つかりません');
+  if (!roomId) throw err_('ROOM_NOT_FOUND', 'ルームが指定されていません');
+  let r = rows_('Rooms').find(x => String(x.roomId) === String(roomId));
+  if (!r) {
+    // 直前の書き込みが反映されていない場合に備えて、少し待って読み直す
+    SpreadsheetApp.flush();
+    Utilities.sleep(600);
+    delete _rows['Rooms'];
+    r = rows_('Rooms').find(x => String(x.roomId) === String(roomId));
+  }
+  if (!r) throw err_('ROOM_NOT_FOUND', 'ルームが見つかりません（削除されたか、期限切れです）');
   r.roomId = String(r.roomId);
   return r;
 }
@@ -1007,7 +1015,13 @@ function json_(o) { return ContentService.createTextOutput(JSON.stringify(o)).se
 function withLock_(fn) {
   const lock = LockService.getScriptLock();
   if (!lock.tryLock(20000)) throw err_('BUSY', 'サーバーが混み合っています。もう一度お試しください');
-  try { return fn(); } finally { lock.releaseLock(); }
+  try {
+    return fn();
+  } finally {
+    // 書き込みを確定させてからロックを外す（次のリクエストが古いデータを読むのを防ぐ）
+    SpreadsheetApp.flush();
+    lock.releaseLock();
+  }
 }
 
 /* ---------- シート操作（リクエスト内キャッシュ付き） ---------- */

@@ -3,7 +3,7 @@
 
 export const CONFIG = {
   APP_NAME: 'まちアリーナ～リアルに遊ぶ',
-  APP_VERSION: 'v1.0.4',
+  APP_VERSION: 'v1.0.5',
 
   // 注意事項・免責事項の版（Code.gs の TERMS_VERSION と同じ値にする）
   TERMS_VERSION: 'terms-2026-10-25',
