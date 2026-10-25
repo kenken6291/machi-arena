@@ -3,7 +3,7 @@
 
 export const CONFIG = {
   APP_NAME: 'まちアリーナ～リアルに遊ぶ',
-  APP_VERSION: 'v1.0.2',
+  APP_VERSION: 'v1.0.3',
 
   // デプロイした GAS Web アプリの URL（…/exec）
   GAS_API_URL: 'https://script.google.com/macros/s/AKfycbx6lmMss5gvFhLayveESPPL3Ead0Thlnft86CNFo1Y7cKLibYQQ94i3IGWtlBNebwCYiQ/exec',

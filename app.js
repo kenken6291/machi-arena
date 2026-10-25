@@ -38,8 +38,6 @@ const S = {
 /* ============================================================
  * 起動
  * ============================================================ */
-init();
-
 function init() {
   $('#app-version').textContent = CONFIG.APP_VERSION;
   bindPasswordToggles();
@@ -1332,3 +1330,8 @@ async function requestWakeLock() {
 function releaseWakeLock() {
   if (S.wakeLock) { S.wakeLock.release().catch(() => {}); S.wakeLock = null; }
 }
+
+/* ============================================================
+ * 起動（すべての定義が読み込まれた後に実行）
+ * ============================================================ */
+init();

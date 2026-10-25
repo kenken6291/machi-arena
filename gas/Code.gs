@@ -14,7 +14,7 @@
 
 const APP = {
   NAME: 'まちアリーナ～リアルに遊ぶ',
-  VERSION: 'v1.0.2',
+  VERSION: 'v1.0.3',
   SESSION_DAYS: 14,
   MAX_FAIL: 5,
   LOCK_MIN: 15,
