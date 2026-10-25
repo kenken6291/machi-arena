@@ -21,6 +21,54 @@ const MODE_DEFAULTS = {
 };
 const isTagMode = (m) => m === 'onigokko' || m === 'kakurenbo';
 
+/* ---------- 注意事項・免責事項 ---------- */
+const TERMS = [
+  { title: '1. このサービスについて', items: [
+    '本サービスは個人が無償・ボランティアで運営する、位置情報を使った遊びのためのサービスです。',
+    '内容は予告なく変更・中断・終了することがあります。'
+  ] },
+  { title: '2. 注意事項（必ず守ってください）', items: [
+    '交通ルールを守ってください。道路への飛び出し、信号無視、車道の走行は禁止です。',
+    '歩きながら・走りながらの画面操作（歩きスマホ）はしないでください。画面は安全な場所で立ち止まって見てください。',
+    '私有地、立入禁止区域、線路、工事現場、河川・水辺などの危険な場所には入らないでください。',
+    '駅・商業施設・病院・住宅街などでは、走る・大声を出すなど周囲の迷惑になる行為をしないでください。各施設のルールに従ってください。',
+    '夜間、悪天候、猛暑・寒冷時、体調がすぐれないときは参加しないでください。こまめな水分補給と休憩をとってください。',
+    '他の参加者を押す・つかむ・追い回して危険を生じさせるなど、身体的な接触や危険行為は禁止です。',
+    '18歳未満の方は保護者の同意を得て、保護者の管理のもとで参加してください。',
+    'スポットは誰でも安全に入れる公共の場所に設定してください。',
+    'AIの実況・指令・ミッションの内容は自動生成されたものです。危険・不適切と感じたら従わないでください。'
+  ] },
+  { title: '3. 位置情報と個人情報の取り扱い', items: [
+    '位置情報はルームに参加している間だけ送信され、ゲームのルールに応じて同じルームの参加者に表示されます。',
+    '集合場所や自宅付近など、知られたくない場所では参加しないでください。',
+    '登録情報・位置情報・ゲームの記録は運営用のスプレッドシートに保存され、ルームの記録は概ね7日後に削除されます。',
+    'ニックネームに本名や連絡先など個人を特定できる情報を使わないでください。'
+  ] },
+  { title: '4. 免責事項', items: [
+    '本サービスの利用中・利用に関連して生じた事故、けが、病気、物の紛失・破損、その他一切の損害について、運営者は責任を負いません。',
+    'GPSの誤差、通信障害、端末の不具合、サービスの停止・不具合などにより生じた不利益について、運営者は責任を負いません。',
+    'AIが生成した文章や音声の正確性・安全性は保証しません。',
+    '外部サービス（地図、Google Earth、Google ドライブ等）の内容や動作について、運営者は責任を負いません。'
+  ] },
+  { title: '5. 当事者間での問題解決', items: [
+    '参加者同士、または参加者と第三者（通行人・施設・近隣住民など）との間で生じたトラブル・紛争は、当事者間で話し合って解決してください。',
+    '運営者はトラブルの仲裁・調査・補償は行いません。',
+    '事故や犯罪など緊急の場合は、ためらわず警察（110）・消防/救急（119）に連絡してください。'
+  ] },
+  { title: '6. 自己責任', items: [
+    '参加するかどうか、どこでどのように遊ぶかは、ご自身の判断と責任で決めてください。',
+    '危ないと感じたら、ゲームの途中でもすぐに中止してください。',
+    '禁止行為や迷惑行為があった場合、予告なく利用を停止することがあります。'
+  ] }
+];
+
+const TERMS_CHECKS = [
+  { id: 'notice', label: '注意事項（交通ルール・歩きスマホ禁止・危険な場所に入らない等）を読み、守ります' },
+  { id: 'disclaimer', label: '免責事項を理解し、運営者が事故・損害の責任を負わないことに同意します' },
+  { id: 'parties', label: '参加者同士や第三者とのトラブルは、当事者間で解決することに同意します' },
+  { id: 'self', label: '自分の判断と責任で参加します（18歳未満の場合は保護者の同意を得ています）' }
+];
+
 const S = {
   token: null, user: null, screen: null,
   roomId: null, state: null, prevStatus: null, serverOffset: 0,
@@ -46,6 +94,7 @@ function init() {
   bindRoom();
   bindGame();
   bindHelp();
+  bindTerms();
   unlockAudioOnFirstTap();
   updateSoundButton();
   document.addEventListener('visibilitychange', () => {
@@ -85,6 +134,7 @@ async function api(action, data = {}) {
   if (!json.ok) {
     if (json.error === 'AUTH_REQUIRED') { clearSession(); stopRoomLoop(); show('auth'); }
     if (json.error === 'MUST_CHANGE_PASSWORD') show('change');
+    if (json.error === 'TERMS_REQUIRED' && S.token) { stopRoomLoop(); showTerms(); }
     const err = new Error(json.message || json.error);
     err.code = json.error;
     throw err;
@@ -175,6 +225,7 @@ async function restoreSession() {
 
 function routeAfterLogin() {
   if (S.user.isFirstLogin) { show('change'); return; }
+  if (S.user.needsTerms) { showTerms(); return; }
   loadMedia();
   const roomId = localStorage.getItem(CONFIG.ROOM_KEY);
   if (roomId) enterRoom(roomId);
@@ -212,7 +263,8 @@ function bindAuth() {
     e.preventDefault();
     const email = $('#reg-email').value.trim();
     const nickname = $('#reg-nickname').value.trim();
-    const r = await api('register', { email, nickname });
+    if (!allChecked('reg')) throw new Error('注意事項・免責事項のすべての項目にチェックしてください');
+    const r = await api('register', { email, nickname, agreeTerms: true });
     $('#form-register').classList.add('hidden');
     $('#temp-password').value = r.tempPassword;
     $('#temp-password').type = 'password';
@@ -305,6 +357,80 @@ function bindHelp() {
 }
 
 /* ============================================================
+ * 注意事項・免責事項の同意
+ * ============================================================ */
+function renderTerms() {
+  const html = TERMS.map((sec) => `<h3>${esc(sec.title)}</h3><ul>${sec.items.map((i) => `<li>${esc(i)}</li>`).join('')}</ul>`).join('')
+    + `<p class="terms-date">版：${esc(CONFIG.TERMS_VERSION)}</p>`;
+  $$('.terms-text').forEach((el) => { el.innerHTML = html; });
+  $$('.terms-checks').forEach((box) => {
+    const g = box.dataset.group;
+    box.innerHTML = TERMS_CHECKS.map((c) =>
+      `<label class="check"><input type="checkbox" data-check="${c.id}"> <span>${esc(c.label)}</span></label>`).join('');
+  });
+  updateTermsButtons();
+}
+
+function allChecked(group) {
+  const boxes = $$(`.terms-checks[data-group="${group}"] input[type=checkbox]`);
+  return boxes.length > 0 && boxes.every((b) => b.checked);
+}
+
+function updateTermsButtons() {
+  $('#btn-register').disabled = !allChecked('reg');
+  $('#btn-terms-agree').disabled = !allChecked('screen');
+}
+
+function showTerms() {
+  $$('.terms-checks[data-group="screen"] input').forEach((b) => { b.checked = false; });
+  updateTermsButtons();
+  show('terms');
+}
+
+function openTermsModal() { $('#terms-modal').classList.remove('hidden'); $('#terms-modal .help-body').scrollTop = 0; }
+function closeTermsModal() { $('#terms-modal').classList.add('hidden'); }
+
+const todayKey = () => new Date().toISOString().slice(0, 10);
+
+function requirePlayAgree() {
+  if ($('#play-agree').checked) return true;
+  const box = $('.play-agree');
+  box.classList.remove('need');
+  void box.offsetWidth;
+  box.classList.add('need');
+  box.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  toast('参加の前に「注意事項を守り、自己責任で参加します」にチェックしてください', true);
+  return false;
+}
+
+function bindTerms() {
+  renderTerms();
+  document.addEventListener('change', (e) => { if (e.target.closest('.terms-checks')) updateTermsButtons(); });
+  document.addEventListener('click', (e) => { if (e.target.closest('[data-terms]')) openTermsModal(); });
+  $('#btn-terms-close').addEventListener('click', closeTermsModal);
+  $('#btn-terms-ok').addEventListener('click', closeTermsModal);
+  $('#terms-modal').addEventListener('click', (e) => { if (e.target.id === 'terms-modal') closeTermsModal(); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeTermsModal(); });
+
+  $('#btn-terms-agree').addEventListener('click', safe(async () => {
+    if (!allChecked('screen')) throw new Error('すべての項目にチェックしてください');
+    const r = await api('agreeTerms', { agree: true });
+    setUser(r.user);
+    toast('同意を記録しました');
+    routeAfterLogin();
+  }));
+
+  $('#btn-terms-decline').addEventListener('click', async () => {
+    if (!confirm('同意いただけない場合はご利用いただけません。ログアウトしますか？')) return;
+    try { await api('logout'); } catch (e) { /* noop */ }
+    stopRoomLoop();
+    clearSession();
+    S.roomId = null;
+    show('auth');
+  });
+}
+
+/* ============================================================
  * 位置情報
  * ============================================================ */
 function startGeo() {
@@ -367,6 +493,7 @@ function gotoLobby() {
   $('#lobby-hello').textContent = `${S.user.nickname} さん、どのゲームで遊びますか？`;
   startGeo();
   loadRooms();
+  $('#play-agree').checked = localStorage.getItem('machiArena.playAgree') === todayKey();
   if (!localStorage.getItem('machiArena.helpSeen')) {
     localStorage.setItem('machiArena.helpSeen', '1');
     openHelp('room');
@@ -409,7 +536,14 @@ function openCreatePanel(mode) {
 }
 
 function bindLobby() {
-  $$('.mode-card').forEach((c) => c.addEventListener('click', () => openCreatePanel(c.dataset.mode)));
+  $('#play-agree').addEventListener('change', (e) => {
+    if (e.target.checked) localStorage.setItem('machiArena.playAgree', todayKey());
+    else localStorage.removeItem('machiArena.playAgree');
+  });
+  $$('.mode-card').forEach((c) => c.addEventListener('click', () => {
+    if (!requirePlayAgree()) return;
+    openCreatePanel(c.dataset.mode);
+  }));
   $('#btn-create-cancel').addEventListener('click', () => {
     $('#create-panel').classList.add('hidden');
     $$('.mode-card').forEach((c) => c.classList.remove('selected'));
@@ -417,6 +551,7 @@ function bindLobby() {
 
   $('#form-create').addEventListener('submit', safe(async (e) => {
     e.preventDefault();
+    if (!requirePlayAgree()) return;
     const form = e.target;
     const mode = $('#create-mode').value;
     const settings = {};
@@ -432,6 +567,7 @@ function bindLobby() {
   }));
 
   const join = safe(async (code) => {
+    if (!requirePlayAgree()) return;
     code = String(code || '').trim().toUpperCase();
     if (code.length !== 6) throw new Error('ルームコードは6文字です');
     const r = await api('joinRoom', { code });

@@ -14,7 +14,7 @@
 
 const APP = {
   NAME: 'まちアリーナ～リアルに遊ぶ',
-  VERSION: 'v1.0.3',
+  VERSION: 'v1.0.4',
   SESSION_DAYS: 14,
   MAX_FAIL: 5,
   LOCK_MIN: 15,
@@ -24,12 +24,15 @@ const APP = {
   AI_PER_MIN: 8           // 1ユーザーあたりの AI 呼び出し上限/分
 };
 
+// 注意事項・免責事項の版。文面を変えたら日付を更新すると、全員に再同意を求めます（config.js の TERMS_VERSION と合わせる）
+const TERMS_VERSION = 'terms-2026-10-25'; // 日付だけだとシートが日付型に変換するため接頭辞付き
+
 const MODES = ['onigokko', 'kakurenbo', 'territory', 'board'];
 const MODE_LABEL = { onigokko: 'リアル鬼ごっこ', kakurenbo: 'リアルかくれんぼ', territory: 'リアル陣取り合戦', board: 'リアルすごろく' };
 const TEAM_LABEL = { red: '赤チーム', blue: '青チーム' };
 
 const SHEETS = {
-  Users:    ['userId', 'email', 'nickname', 'passwordHash', 'salt', 'isFirstLogin', 'failCount', 'lockedUntil', 'createdAt', 'updatedAt'],
+  Users:    ['userId', 'email', 'nickname', 'passwordHash', 'salt', 'isFirstLogin', 'failCount', 'lockedUntil', 'createdAt', 'updatedAt', 'termsVersion', 'termsAgreedAt'],
   Sessions: ['token', 'userId', 'expiresAt', 'createdAt'],
   Rooms:    ['roomId', 'code', 'name', 'mode', 'hostId', 'status', 'settingsJson', 'centerLat', 'centerLng', 'startedAt', 'endsAt', 'resultJson', 'createdAt'],
   Players:  ['roomId', 'userId', 'nickname', 'role', 'team', 'lat', 'lng', 'accuracy', 'locUpdatedAt', 'status', 'score', 'position', 'target', 'mission', 'joinedAt'],
@@ -125,6 +128,7 @@ const PUBLIC_ACTIONS = {
 
 const PRIVATE_ACTIONS = {
   me: (req, user) => ({ user: publicUser_(user) }),
+  agreeTerms: agreeTerms_,
   logout: logout_,
   changePassword: changePassword_,
   listRooms: listRooms_,
@@ -146,7 +150,7 @@ const PRIVATE_ACTIONS = {
   getMedia: getMedia_
 };
 
-const ALLOWED_WHEN_FIRST_LOGIN = ['me', 'logout', 'changePassword'];
+const ALLOWED_WHEN_FIRST_LOGIN = ['me', 'logout', 'changePassword', 'agreeTerms'];
 
 function doPost(e) {
   let req = {};
@@ -164,6 +168,9 @@ function doPost(e) {
     if (bool_(user.isFirstLogin) && ALLOWED_WHEN_FIRST_LOGIN.indexOf(action) < 0) {
       throw err_('MUST_CHANGE_PASSWORD', '本パスワードを設定してください');
     }
+    if (needsTerms_(user) && ALLOWED_WHEN_FIRST_LOGIN.indexOf(action) < 0) {
+      throw err_('TERMS_REQUIRED', '注意事項・免責事項への同意が必要です');
+    }
     return json_(Object.assign({ ok: true }, fn(req, user)));
   } catch (err) {
     console.error(err && err.stack ? err.stack : err);
@@ -179,6 +186,7 @@ function register_(req) {
   const nickname = String(req.nickname || '').trim();
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw err_('INVALID_EMAIL', 'メールアドレスの形式が正しくありません');
   if (nickname.length < 1 || nickname.length > 20) throw err_('INVALID_NICKNAME', 'ニックネームは1〜20文字で入力してください');
+  if (req.agreeTerms !== true) throw err_('TERMS_REQUIRED', '注意事項・免責事項・自己責任についてすべて同意してください');
   return withLock_(() => {
     if (rows_('Users').some(u => String(u.email) === email)) throw err_('EMAIL_EXISTS', 'このメールアドレスは登録済みです。パスワードを忘れた場合は再発行してください');
     const tempPassword = randomStr_(10);
@@ -187,7 +195,8 @@ function register_(req) {
     insert_('Users', {
       userId: 'u_' + Utilities.getUuid(), email, nickname,
       passwordHash: hash_(tempPassword, salt), salt,
-      isFirstLogin: true, failCount: 0, lockedUntil: 0, createdAt: now, updatedAt: now
+      isFirstLogin: true, failCount: 0, lockedUntil: 0, createdAt: now, updatedAt: now,
+      termsVersion: TERMS_VERSION, termsAgreedAt: now
     });
     let mailed = false;
     try {
@@ -267,6 +276,17 @@ function changePassword_(req, user) {
   });
 }
 
+function agreeTerms_(req, user) {
+  if (req.agree !== true) throw err_('TERMS_REQUIRED', 'すべての項目に同意してください');
+  return withLock_(() => {
+    const u = rows_('Users').find(x => String(x.userId) === String(user.userId));
+    update_('Users', u, { termsVersion: TERMS_VERSION, termsAgreedAt: Date.now(), updatedAt: Date.now() });
+    return { user: publicUser_(u), message: '同意を記録しました' };
+  });
+}
+
+function needsTerms_(u) { return String(u.termsVersion || '') !== TERMS_VERSION; }
+
 function logout_(req) {
   withLock_(() => deleteWhere_('Sessions', s => String(s.token) === String(req.token)));
   CacheService.getScriptCache().remove(cacheKey_(req.token));
@@ -289,7 +309,10 @@ function auth_(token) {
 }
 
 function publicUser_(u) {
-  return { userId: String(u.userId), email: String(u.email), nickname: String(u.nickname), isFirstLogin: bool_(u.isFirstLogin) };
+  return {
+    userId: String(u.userId), email: String(u.email), nickname: String(u.nickname), isFirstLogin: bool_(u.isFirstLogin),
+    needsTerms: needsTerms_(u), termsVersion: TERMS_VERSION
+  };
 }
 
 /* ============================================================
@@ -996,9 +1019,16 @@ function ss_() {
   _ss = id ? SpreadsheetApp.openById(id) : SpreadsheetApp.getActiveSpreadsheet();
   return _ss;
 }
+const _headerChecked = {};
 function sh_(name) {
   const sh = ss_().getSheetByName(name);
   if (!sh) throw err_('NO_SHEET', 'シート「' + name + '」がありません。setup() を実行してください');
+  if (!_headerChecked[name]) {
+    // 列が追加された場合（バージョンアップ時）に見出し行を自動補完
+    const h = SHEETS[name];
+    if (sh.getLastColumn() < h.length) sh.getRange(1, 1, 1, h.length).setValues([h]).setFontWeight('bold');
+    _headerChecked[name] = true;
+  }
   return sh;
 }
 function rows_(name) {

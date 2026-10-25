@@ -361,6 +361,32 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--signal); }
   .help-keys dd { margin-bottom: 6px; }
 }
 
+/* ---------- 注意事項・免責事項 ---------- */
+.terms-box { display: grid; gap: 8px; padding: 12px; border: 1px solid var(--amber); border-radius: 12px; background: var(--deeper); }
+.terms-box .link-btn { margin-top: 0; justify-self: start; }
+.terms-lead { margin: 0; font-size: 13px; color: var(--ink); }
+.terms-checks { display: grid; gap: 8px; }
+.terms-checks label.check { align-items: flex-start; font-size: 14px; line-height: 1.55; }
+.terms-checks input[type=checkbox] { flex-shrink: 0; margin-top: 2px; }
+.terms-scroll {
+  max-height: 46vh; overflow-y: auto; margin: 12px 0; padding: 12px;
+  background: var(--deeper); border: 1px solid var(--line); border-radius: 12px; font-size: 14px; line-height: 1.75;
+}
+.terms-text h3 { font-size: 15px; margin: 14px 0 4px; color: var(--signal); }
+.terms-text h3:first-child { margin-top: 0; }
+.terms-text ul { margin: 4px 0; padding-left: 1.3em; }
+.terms-text li { margin: 3px 0; }
+.terms-text .terms-date { color: var(--dim); font-size: 12px; }
+#screen-terms .terms-checks { margin-bottom: 14px; }
+.terms-modal { z-index: 2600; }
+.terms-modal .help-sheet > .btn { margin-top: 10px; flex-shrink: 0; }
+.play-agree {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 12px;
+  padding: 10px 12px; margin-bottom: 14px; border: 1px solid var(--amber); border-radius: 12px; background: var(--deep);
+}
+.play-agree .link-btn { margin-top: 0; font-size: 13px; }
+.play-agree.need { animation: blink 0.6s steps(2) 3; }
+
 /* ---------- 演出・トースト ---------- */
 .cinema {
   position: fixed; inset: 0; z-index: 3000; background: #000;

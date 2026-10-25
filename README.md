@@ -56,6 +56,8 @@ machi-arena/
 | failCount | 連続ログイン失敗回数（5回で15分ロック） |
 | lockedUntil | ロック解除時刻（ミリ秒） |
 | createdAt / updatedAt | 作成・更新時刻（ミリ秒） |
+| termsVersion | 同意した注意事項・免責事項の版（例 `terms-2026-10-25`） |
+| termsAgreedAt | 同意した日時（ミリ秒） |
 
 **Sessions**（ログイン中のトークン）: `token`, `userId`, `expiresAt`（14日）, `createdAt`
 
@@ -115,13 +117,13 @@ Apps Script の「プロジェクトの設定」→「スクリプト プロパ�
 
 ### 動作確認
 
-ブラウザで `…/exec` を開き、`{"ok":true,"app":"まちアリーナ～リアルに遊ぶ","version":"v1.0.2",…}` が出れば OK です。
+ブラウザで `…/exec` を開き、`{"ok":true,"app":"まちアリーナ～リアルに遊ぶ","version":"v1.0.4",…}` が出れば OK です。
 
 ## 4. config.js の設定
 
 ```js
 GAS_API_URL: 'https://script.google.com/macros/s/（デプロイID）/exec',
-APP_VERSION: 'v1.0.2',
+APP_VERSION: 'v1.0.4',
 DEBUG_MODE: false,          // true で通信内容をコンソールに出力
 TTS_ENGINE: 'gemini',       // 'browser' にすると API を使わず端末で読み上げ
 ```
@@ -151,7 +153,7 @@ TTS_ENGINE: 'gemini',       // 'browser' にすると API を使わず端末で�
    ```bash
    git init
    git add index.html style.css app.js config.js sw.js manifest.webmanifest icon.svg README.md
-   git commit -m "まちアリーナ～リアルに遊ぶ v1.0.2"
+   git commit -m "まちアリーナ～リアルに遊ぶ v1.0.4"
    git branch -M main
    git remote add origin https://github.com/kenken6291/machi-arena.git
    git push -u origin main
@@ -178,7 +180,13 @@ TTS_ENGINE: 'gemini',       // 'browser' にすると API を使わず端末で�
 
 右側のボタン：📡 レーダー切替、◎ 現在地へ、🎙 AI ゲームマスターに指令をもらう、🔊 音声オン/オフ、💬 実況ログ（ホストはここから強制終了）。
 
-## 8. 運用メモ
+## 8. 注意事項・免責事項の同意
+
+- 新規登録時に4項目（注意事項・免責事項・当事者間での解決・自己責任）すべてにチェックしないと登録できません。同意日時は Users シートに記録されます。
+- 文面は `app.js` 冒頭の `TERMS` にあります。内容を変えたら、`config.js` の `TERMS_VERSION` と `Code.gs` の `TERMS_VERSION` を同じ新しい値（例 `terms-2026-12-01`）にすると、全員に次回ログイン時の再同意を求めます。
+- ロビーでは「今日も注意事項を守り、自己責任で参加します」にチェックしないとルームの作成・参加ができません（1日1回）。
+
+## 9. 運用メモ
 
 - **GAS の実行回数**：参加者1人あたり 5 秒に1回 `syncRoom` が走ります。10人×30分で約3,600回。無料アカウントでも日次上限には余裕がありますが、大人数なら `POLL_INTERVAL_MS` を 8000 程度に。
 - **同時処理**：書き込みは LockService で直列化しています。1ルーム10人程度までを想定しています。
