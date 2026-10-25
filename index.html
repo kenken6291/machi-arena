@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#081226">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>まちアリーナ — 街まるごと位置情報ゲーム</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header id="app-header">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true"></span>
+      <span class="brand-name">まちアリーナ</span>
+    </div>
+    <div class="header-right">
+      <span id="gps-indicator" class="gps off" title="GPS">GPS</span>
+      <span id="hdr-user" class="hdr-user hidden"></span>
+      <button id="btn-help" class="icon-btn" type="button" aria-label="使い方">？</button>
+      <button id="btn-logout" class="icon-btn hidden" type="button" aria-label="ログアウト">⏻</button>
+      <span id="app-version" class="version">v0.0.0</span>
+    </div>
+  </header>
+
+  <main>
+    <!-- ===== ログイン / 登録 ===== -->
+    <section id="screen-auth" class="screen">
+      <div class="hero">
+        <div class="hero-radar" aria-hidden="true"><span></span><span></span><span></span></div>
+        <h1 class="hero-title">街が、<br>ゲーム盤になる。</h1>
+        <p class="hero-lead">近くの仲間とスマホひとつで、鬼ごっこ・かくれんぼ・陣取り・すごろく。</p>
+        <button type="button" class="link-btn" data-help="start">はじめての方へ：使い方を見る</button>
+      </div>
+
+      <div class="panel">
+        <div class="tabs" role="tablist">
+          <button class="tab active" type="button" data-tab="login" role="tab">ログイン</button>
+          <button class="tab" type="button" data-tab="register" role="tab">新規登録</button>
+          <button class="tab" type="button" data-tab="forgot" role="tab">パスワード再発行</button>
+        </div>
+
+        <form id="form-login" class="auth-form" data-pane="login" autocomplete="on">
+          <label>メールアドレス
+            <input id="login-email" type="email" inputmode="email" autocomplete="username" required>
+          </label>
+          <label>パスワード（仮パスワード可）
+            <span class="pw-field">
+              <input id="login-password" type="password" autocomplete="current-password" required>
+              <button type="button" class="pw-toggle" data-target="login-password" aria-label="パスワードを表示">👁</button>
+            </span>
+          </label>
+          <button type="submit" class="btn primary">ログイン</button>
+        </form>
+
+        <form id="form-register" class="auth-form hidden" data-pane="register">
+          <label>メールアドレス
+            <input id="reg-email" type="email" inputmode="email" autocomplete="email" required>
+          </label>
+          <label>ニックネーム（ゲーム内で表示）
+            <input id="reg-nickname" type="text" maxlength="20" required>
+          </label>
+          <button type="submit" class="btn primary">仮パスワードを発行</button>
+          <p class="note">仮パスワードはこの画面とメールでお知らせします。初回ログイン時に本パスワードへ変更します。</p>
+        </form>
+
+        <div id="temp-result" class="temp-result hidden">
+          <p class="temp-title">仮パスワードを発行しました</p>
+          <span class="pw-field">
+            <input id="temp-password" type="password" readonly>
+            <button type="button" class="pw-toggle" data-target="temp-password" aria-label="パスワードを表示">👁</button>
+          </span>
+          <p id="temp-mail-note" class="note"></p>
+          <div class="row">
+            <button id="btn-copy-temp" type="button" class="btn">コピー</button>
+            <button id="btn-go-login" type="button" class="btn primary">このパスワードでログイン</button>
+          </div>
+        </div>
+
+        <form id="form-forgot" class="auth-form hidden" data-pane="forgot">
+          <label>登録したメールアドレス
+            <input id="forgot-email" type="email" inputmode="email" autocomplete="email" required>
+          </label>
+          <button type="submit" class="btn primary">仮パスワードを再発行</button>
+          <p class="note">新しい仮パスワードをメールで送ります。次回ログイン時にパスワード変更が必要です。</p>
+        </form>
+      </div>
+    </section>
+
+    <!-- ===== パスワード変更 ===== -->
+    <section id="screen-change" class="screen">
+      <div class="panel">
+        <h2 class="panel-title">本パスワードを設定</h2>
+        <p class="note">仮パスワードでログインしました。続けるには新しいパスワードを設定してください。</p>
+        <form id="form-change" class="auth-form">
+          <label>現在のパスワード（仮パスワード）
+            <span class="pw-field">
+              <input id="chg-current" type="password" autocomplete="current-password" required>
+              <button type="button" class="pw-toggle" data-target="chg-current" aria-label="パスワードを表示">👁</button>
+            </span>
+          </label>
+          <label>新しいパスワード（英字と数字を含む8文字以上）
+            <span class="pw-field">
+              <input id="chg-new" type="password" autocomplete="new-password" minlength="8" required>
+              <button type="button" class="pw-toggle" data-target="chg-new" aria-label="パスワードを表示">👁</button>
+            </span>
+          </label>
+          <label>新しいパスワード（確認）
+            <span class="pw-field">
+              <input id="chg-confirm" type="password" autocomplete="new-password" minlength="8" required>
+              <button type="button" class="pw-toggle" data-target="chg-confirm" aria-label="パスワードを表示">👁</button>
+            </span>
+          </label>
+          <button type="submit" class="btn primary">パスワードを設定</button>
+        </form>
+      </div>
+    </section>
+
+    <!-- ===== ロビー ===== -->
+    <section id="screen-lobby" class="screen">
+      <p id="lobby-hello" class="lobby-hello"></p>
+
+      <div class="panel join-panel">
+        <label for="join-code" class="join-label">ルームコードで参加</label>
+        <div class="row">
+          <input id="join-code" type="text" maxlength="6" autocapitalize="characters" autocomplete="off" placeholder="例 K7P2QX">
+          <button id="btn-join" type="button" class="btn primary">参加</button>
+        </div>
+      </div>
+
+      <h2 class="section-title">ルームを作る</h2>
+      <div class="mode-grid">
+        <button class="mode-card" type="button" data-mode="onigokko">
+          <span class="mode-icon">👹</span><span class="mode-name">リアル鬼ごっこ</span>
+          <span class="mode-desc">鬼が近づくとレーダーが鳴る。セーフティゾーンに逃げ込め。</span>
+        </button>
+        <button class="mode-card" type="button" data-mode="kakurenbo">
+          <span class="mode-icon">🫥</span><span class="mode-name">リアルかくれんぼ</span>
+          <span class="mode-desc">鬼に見えるのは「近い・遠い」だけ。定期的に位置が公開される。</span>
+        </button>
+        <button class="mode-card" type="button" data-mode="territory">
+          <span class="mode-icon">🚩</span><span class="mode-name">リアル陣取り合戦</span>
+          <span class="mode-desc">赤と青に分かれて、街のスポットにチェックインして占領。</span>
+        </button>
+        <button class="mode-card" type="button" data-mode="board">
+          <span class="mode-icon">🎲</span><span class="mode-name">リアルすごろく</span>
+          <span class="mode-desc">ダイスで出たマスまで歩き、AIのミッションをクリアして進む。</span>
+        </button>
+      </div>
+
+      <div id="create-panel" class="panel hidden">
+        <h2 class="panel-title" id="create-mode-label">ルーム作成</h2>
+        <form id="form-create" class="settings-form">
+          <input type="hidden" id="create-mode">
+          <label class="wide">ルーム名
+            <input id="create-name" type="text" maxlength="30" placeholder="未入力なら自動で付けます">
+          </label>
+          <label>制限時間（分）<input name="durationMin" type="number" min="3" max="180" value="30"></label>
+          <label data-modes="onigokko kakurenbo">捕獲距離（m）<input name="catchRadius" type="number" min="5" max="50" value="15"></label>
+          <label data-modes="onigokko kakurenbo">逃げ・隠れ時間（秒）<input name="hideSeconds" type="number" min="0" max="600" value="60"></label>
+          <label data-modes="onigokko kakurenbo">位置公開の間隔（秒・0で無し）<input name="revealInterval" type="number" min="0" max="1800" value="180"></label>
+          <label data-modes="onigokko kakurenbo territory">レーダー範囲（m）<input name="radarRange" type="number" min="50" max="2000" value="300"></label>
+          <label data-modes="onigokko kakurenbo">接近アラート（m）<input name="alertRadius" type="number" min="10" max="300" value="60"></label>
+          <label data-modes="onigokko kakurenbo">鬼の人数（0で自動）<input name="oniCount" type="number" min="0" max="20" value="0"></label>
+          <label data-modes="territory board">チェックイン半径（m）<input name="checkinRadius" type="number" min="10" max="200" value="30"></label>
+          <label data-modes="territory">奪還までの待ち（秒）<input name="captureCooldownSec" type="number" min="0" max="600" value="60"></label>
+          <label class="check" data-modes="onigokko kakurenbo"><input name="infect" type="checkbox"> 増え鬼（捕まると鬼になる）</label>
+          <label class="check wide"><input name="aiAnnounce" type="checkbox" checked> AIゲームマスターの実況を使う</label>
+          <div class="row wide">
+            <button type="button" id="btn-create-cancel" class="btn">やめる</button>
+            <button type="submit" class="btn primary">ルームを作成</button>
+          </div>
+        </form>
+      </div>
+
+      <div class="section-head">
+        <h2 class="section-title">近くのルーム</h2>
+        <button id="btn-refresh-rooms" type="button" class="btn small">更新</button>
+      </div>
+      <ul id="room-list" class="room-list"></ul>
+    </section>
+
+    <!-- ===== 待機室 ===== -->
+    <section id="screen-room" class="screen">
+      <div class="room-head">
+        <div>
+          <p id="room-mode" class="room-mode"></p>
+          <h2 id="room-name" class="room-name"></h2>
+        </div>
+        <button id="btn-share-code" type="button" class="code-chip" aria-label="ルームコードを共有">
+          <span class="code-label">コード</span><span id="room-code" class="code-value"></span>
+        </button>
+      </div>
+
+      <div id="wait-map" class="wait-map"></div>
+      <p id="pick-hint" class="pick-hint hidden">地図をタップするとスポットを追加します</p>
+
+      <div class="panel">
+        <h3 id="spot-title" class="panel-sub">スポット</h3>
+        <ul id="spot-list" class="spot-list"></ul>
+        <div id="spot-tools" class="spot-tools hidden">
+          <div class="row">
+            <input id="spot-name" type="text" maxlength="30" placeholder="スポット名（例：駅前の時計台）">
+            <input id="spot-radius" type="number" min="10" max="200" value="30" aria-label="半径（m）">
+          </div>
+          <div class="row">
+            <button id="btn-spot-here" type="button" class="btn">現在地に追加</button>
+            <button id="btn-spot-pick" type="button" class="btn">地図で選ぶ</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h3 class="panel-sub">参加者</h3>
+        <ul id="player-list" class="player-list"></ul>
+      </div>
+
+      <div class="panel">
+        <h3 class="panel-sub">ルール</h3>
+        <dl id="settings-summary" class="settings-summary"></dl>
+      </div>
+
+      <p id="wait-hint" class="note center"></p>
+      <div class="row sticky-actions">
+        <button id="btn-leave" type="button" class="btn">退出</button>
+        <button id="btn-start" type="button" class="btn primary hidden">ゲーム開始</button>
+      </div>
+    </section>
+
+    <!-- ===== ゲーム ===== -->
+    <section id="screen-game" class="screen game">
+      <div id="game-map" class="game-map"></div>
+      <div id="radar-wrap" class="radar-wrap hidden">
+        <canvas id="radar" aria-label="レーダー"></canvas>
+        <p id="radar-caption" class="radar-caption"></p>
+      </div>
+
+      <div class="hud">
+        <div class="hud-timer" id="hud-timer">--:--</div>
+        <div class="hud-meta">
+          <span id="hud-role" class="role-badge"></span>
+          <span id="hud-score" class="hud-score"></span>
+        </div>
+        <p id="hud-sub" class="hud-sub"></p>
+      </div>
+
+      <div class="tool-rail">
+        <button id="btn-view-toggle" type="button" class="tool" aria-label="レーダー表示">📡</button>
+        <button id="btn-center" type="button" class="tool" aria-label="現在地へ">◎</button>
+        <button id="btn-gm" type="button" class="tool" aria-label="AIゲームマスターの指令">🎙</button>
+        <button id="btn-sound" type="button" class="tool" aria-label="音声オン/オフ">🔊</button>
+        <button id="btn-feed" type="button" class="tool" aria-label="実況ログ">💬<span id="feed-badge" class="badge hidden"></span></button>
+      </div>
+
+      <div id="mission-card" class="mission-card hidden">
+        <p class="mission-label">ミッション</p>
+        <p id="mission-text"></p>
+      </div>
+
+      <div id="actions" class="action-bar"></div>
+
+      <aside id="feed" class="feed hidden" aria-label="実況ログ">
+        <div class="feed-head">
+          <h3>実況ログ</h3>
+          <button id="btn-feed-close" type="button" class="icon-btn" aria-label="閉じる">✕</button>
+        </div>
+        <ul id="feed-list" class="feed-list"></ul>
+        <button id="btn-end" type="button" class="btn danger hidden">ゲームを終了する（ホスト）</button>
+      </aside>
+    </section>
+
+    <!-- ===== 結果 ===== -->
+    <section id="screen-result" class="screen">
+      <div class="panel result-panel">
+        <p class="room-mode" id="result-mode"></p>
+        <h2 id="result-title" class="result-title">ゲーム終了</h2>
+        <p id="result-text" class="result-text"></p>
+        <ol id="result-ranking" class="ranking"></ol>
+        <button id="btn-back-lobby" type="button" class="btn primary">ロビーに戻る</button>
+      </div>
+    </section>
+  </main>
+
+  <!-- 演出オーバーレイ（Google Earth Studio 素材） -->
+  <div id="cinema" class="cinema hidden" role="dialog" aria-label="演出">
+    <div id="cinema-media" class="cinema-media"></div>
+    <p id="cinema-caption" class="cinema-caption"></p>
+    <button id="btn-cinema-close" type="button" class="btn small">閉じる</button>
+  </div>
+
+
+  <!-- 使い方 -->
+  <div id="help" class="help hidden" role="dialog" aria-modal="true" aria-labelledby="help-title">
+    <div class="help-sheet">
+      <div class="help-head">
+        <h2 id="help-title">使い方</h2>
+        <button id="btn-help-close" type="button" class="icon-btn" aria-label="閉じる">✕</button>
+      </div>
+      <nav class="help-nav" aria-label="使い方の目次">
+        <button type="button" data-help="start">はじめに</button>
+        <button type="button" data-help="room">ルーム</button>
+        <button type="button" data-help="screen">ゲーム画面</button>
+        <button type="button" data-help="modes">ルール</button>
+        <button type="button" data-help="safety">安全</button>
+        <button type="button" data-help="faq">困ったとき</button>
+      </nav>
+      <div class="help-body">
+        <section id="help-start">
+          <h3>はじめに：会員登録とログイン</h3>
+          <ol>
+            <li>「新規登録」でメールアドレスとニックネームを入力し、「仮パスワードを発行」を押します。</li>
+            <li>画面に仮パスワードが表示されます（同じものがメールにも届きます）。「このパスワードでログイン」を押すと入力済みのログイン画面に進みます。</li>
+            <li>初回ログインでは本パスワードの設定画面が出ます。英字と数字を含む8文字以上で設定してください。</li>
+            <li>パスワードを忘れたら「パスワード再発行」から。新しい仮パスワードがメールで届き、次のログイン時にもう一度本パスワードを設定します。</li>
+          </ol>
+          <p>パスワード欄の 👁 を押すと入力内容を確認できます。ログイン状態は次回も保たれます。</p>
+          <p>位置情報の利用を聞かれたら「許可」を選んでください。位置情報がないとゲームに参加できません。</p>
+        </section>
+
+        <section id="help-room">
+          <h3>ルームを作る・参加する</h3>
+          <h4>作る人（ホスト）</h4>
+          <ol>
+            <li>ロビーで遊びたいモードを選び、制限時間などを決めて「ルームを作成」を押します。</li>
+            <li>待機室の右上に出る6文字のコードを押すと、LINE などで仲間に共有できます。</li>
+            <li>スポットを追加します。名前と半径を入れて「現在地に追加」、または「地図で選ぶ」を押してから地図をタップします。
+              <ul>
+                <li>鬼ごっこ・かくれんぼ：セーフティゾーン（中にいる間は捕まらない場所）</li>
+                <li>陣取り合戦：奪い合う陣地（1か所以上）</li>
+                <li>すごろく：マス。追加した順に1、2、3…と番号が付きます（2か所以上）</li>
+              </ul>
+            </li>
+            <li>必要なら参加者ごとに鬼やチームを指定します（「自動」のままでも開始時に割り振られます）。</li>
+            <li>全員そろったら「ゲーム開始」。参加者全員の画面が一斉に切り替わります。</li>
+          </ol>
+          <h4>参加する人</h4>
+          <p>ロビーの「ルームコードで参加」にコードを入れて「参加」。近くで募集中のルームは一覧からも参加できます。開始後のルームには途中参加できません。</p>
+        </section>
+
+        <section id="help-screen">
+          <h3>ゲーム画面の見方</h3>
+          <dl class="help-keys">
+            <dt>左上</dt><dd>残り時間、あなたの役割（鬼・逃走者・チーム）、スコア。オレンジの文字は「隠れ時間」や「位置公開」などのお知らせです。</dd>
+            <dt>📡 / 🗺</dt><dd>地図とレーダーを切り替えます。レーダーは北が上で、中心があなたです。</dd>
+            <dt>◎</dt><dd>地図をあなたの現在地に戻します。</dd>
+            <dt>🎙</dt><dd>AIゲームマスターから、今やるべき指令をもらえます。</dd>
+            <dt>🔊 / 🔇</dt><dd>実況音声のオン・オフ。</dd>
+            <dt>💬</dt><dd>実況ログ。赤い数字は未読の件数です。ホストはここからゲームを途中終了できます。</dd>
+            <dt>下のボタン</dt><dd>「確保する」「チェックイン」「ダイスを振る」など、そのときできる操作が出ます。</dd>
+            <dt>右上の GPS</dt><dd>位置の精度です。±30m以内なら良好、それより大きいと判定に失敗しやすくなります。</dd>
+          </dl>
+        </section>
+
+        <section id="help-modes">
+          <h3>各モードのルール</h3>
+          <h4>👹 リアル鬼ごっこ</h4>
+          <ul>
+            <li>開始直後は「逃げ時間」。その間、鬼は捕まえられません。</li>
+            <li>鬼は逃走者に捕獲距離（標準15m）まで近づいて「確保する」を押します。</li>
+            <li>逃走者のレーダーには鬼の方向と距離が出ます。接近アラートの距離に入ると振動と音声で知らせます。</li>
+            <li>セーフティゾーンの中にいる逃走者は捕まりません。</li>
+            <li>一定間隔で20秒間だけ全員の位置が地図に公開されます。</li>
+            <li>全員確保で鬼の勝ち。時間切れまで1人でも残れば逃走者の勝ち。「増え鬼」ありだと、捕まった人が鬼になります。</li>
+          </ul>
+          <h4>🫥 リアルかくれんぼ</h4>
+          <ul>
+            <li>鬼ごっことほぼ同じですが、鬼のレーダーには「近い・中くらい・遠い」の距離帯しか出ません。光っている輪のあたりに逃走者がいます。</li>
+            <li>逃走者は隠れ時間のうちに身を隠しましょう。位置公開のタイミングに注意。</li>
+          </ul>
+          <h4>🚩 リアル陣取り合戦</h4>
+          <ul>
+            <li>赤と青の2チームに分かれます。</li>
+            <li>陣地の円の中で「チェックイン」を押すと自分のチームの色になります。相手の陣地も奪えます。</li>
+            <li>奪われた直後の陣地は、しばらく奪い返せません。</li>
+            <li>相手チームの位置はレーダーにだけ映ります。</li>
+            <li>終了時に多くの陣地を持っているチームの勝ち。</li>
+          </ul>
+          <h4>🎲 リアルすごろく</h4>
+          <ol>
+            <li>「ダイスを振る」で目的のマスが決まります（オレンジ色で表示）。</li>
+            <li>そのマスまで歩き、円の中で「到着をチェックイン」。</li>
+            <li>AIからミッションが出ます。やり終えたら「ミッション完了」（自己申告）。</li>
+            <li>最後のマスに最初に到着した人の勝ち。</li>
+          </ol>
+        </section>
+
+        <section id="help-safety">
+          <h3>安全に遊ぶために</h3>
+          <ul>
+            <li>歩きスマホはしないでください。画面は立ち止まって見ましょう。音声と振動で状況がわかります。</li>
+            <li>道路への飛び出し、信号無視、私有地や立入禁止の場所への侵入は禁止です。</li>
+            <li>人の多い場所や駅の構内では走らないでください。</li>
+            <li>スポットは公園や広場など、誰でも入れる安全な場所に置いてください。</li>
+            <li>AIの指令やミッションが危なそうなら、無理に従わず無視してください。</li>
+          </ul>
+        </section>
+
+        <section id="help-faq">
+          <h3>困ったとき</h3>
+          <dl class="help-keys">
+            <dt>位置が取れない</dt><dd>スマホの設定でブラウザの位置情報を「許可」にしてください。建物の中や高いビルの間では精度が落ちるので、空の開けた場所へ。</dd>
+            <dt>「GPS精度が低すぎます」と出る</dt><dd>数秒待ってから再度押してください。精度±50m以内でないと確保・チェックインできません。</dd>
+            <dt>音が出ない</dt><dd>画面を一度タップしてください（iPhoneはタップするまで音が出ません）。マナーモードやメディア音量も確認を。</dd>
+            <dt>画面を閉じたら位置が止まった</dt><dd>ゲーム中はブラウザを開いたままにしてください。別のアプリに切り替えると位置が送られなくなります。</dd>
+            <dt>途中でページを閉じてしまった</dt><dd>もう一度開いてログインすれば、参加中のルームに自動で戻ります。</dd>
+            <dt>ホーム画面に置きたい</dt><dd>iPhoneは共有ボタン →「ホーム画面に追加」、Androidはメニュー →「ホーム画面に追加」。アプリのように起動できます。</dd>
+          </dl>
+        </section>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
+  <div id="loading" class="loading hidden" aria-hidden="true"><span></span></div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script type="module" src="app.js"></script>
+</body>
+</html>

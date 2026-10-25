@@ -1,0 +1,15 @@
+{
+  "name": "まちアリーナ",
+  "short_name": "まちアリーナ",
+  "description": "街まるごと位置情報ゲーム（鬼ごっこ・かくれんぼ・陣取り・すごろく）",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#081226",
+  "theme_color": "#081226",
+  "lang": "ja",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
